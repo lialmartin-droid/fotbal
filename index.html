@@ -1,33 +1,37 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Fotbal 1v1</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Fotbal 3v3</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main class="game-shell">
     <header class="topbar">
       <div class="score">
-        <span class="team player-team">TY</span>
+        <span class="team blue">TY</span>
         <strong id="playerScore">0</strong>
-        <span class="dash">:</span>
+        <span>:</span>
         <strong id="aiScore">0</strong>
-        <span class="team ai-team">AI</span>
+        <span class="team red">AI</span>
       </div>
-
       <div id="timer" class="timer">02:00</div>
     </header>
 
     <section class="field-wrap">
-      <canvas id="gameCanvas" width="900" height="1400" aria-label="Fotbalové hřiště"></canvas>
+      <canvas id="gameCanvas" width="900" height="1400"></canvas>
 
-      <div id="goalMessage" class="goal-message hidden">GÓL!</div>
+      <div id="message" class="goal-message hidden">GÓL!</div>
+
       <div id="startOverlay" class="overlay">
         <div class="overlay-card">
-          <h1>Fotbal 1v1</h1>
-          <p>Joystickem se pohybuj. Tlačítkem STŘELA kopni do míče.</p>
+          <h1>Fotbal 3v3</h1>
+          <p>
+            PC: WASD nebo šipky.<br>
+            Mobil: joystick vlevo.<br>
+            Kop je automatický při kontaktu s míčem.
+          </p>
           <button id="startBtn">ZAČÍT ZÁPAS</button>
         </div>
       </div>
@@ -42,11 +46,15 @@
     </section>
 
     <section class="controls">
-      <div id="joystick" class="joystick" aria-label="Joystick">
+      <div id="joystick" class="joystick">
         <div id="stick" class="stick"></div>
       </div>
 
-      <button id="shootBtn" class="shoot-btn">STŘELA</button>
+      <div class="control-help">
+        <strong>PC</strong>
+        <span>WASD / šipky</span>
+        <small>Aktivní hráč má žlutý kruh.</small>
+      </div>
     </section>
   </main>
 
