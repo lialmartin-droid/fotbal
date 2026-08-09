@@ -1,0 +1,186 @@
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#08111b;--panel:#0d1722;--panel2:#101c28;--line:#23313d;
+  --blue:#0d6efd;--red:#dc3d34;--yellow:#ffd426;--green:#2d9b31
+}
+html,body{margin:0;width:100%;height:100%;background:var(--bg);color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
+body{display:flex}
+.app{width:100%;height:100dvh;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;padding:10px}
+.game-column{min-width:0;display:grid;grid-template-rows:70px minmax(0,1fr) 90px;gap:8px}
+.hud{background:linear-gradient(#111d28,#09131d);border:1px solid var(--line);border-radius:12px;display:grid;grid-template-columns:90px 1fr 130px;align-items:center;padding:0 14px}
+.pause-btn{width:52px;height:52px;border:0;border-radius:8px;background:#0d6efd;color:#fff;font-size:25px;font-weight:900;box-shadow:inset 0 -4px 0 rgba(0,0,0,.2)}
+.scoreboard{display:flex;justify-content:center;align-items:center;gap:22px;font-size:34px;font-weight:900}
+.badge{display:inline-flex;min-width:118px;justify-content:center;padding:8px 18px;border-radius:7px;font-size:23px}
+.badge.blue{background:linear-gradient(#0879ed,#055bb5)}
+.badge.red{background:linear-gradient(#df3c31,#a9211c)}
+.timer{text-align:right;font-size:28px;font-weight:900;color:var(--yellow)}
+.pitch-shell{position:relative;min-height:0;border-radius:12px;overflow:hidden;background:#1e7f25;border:1px solid #162832}
+#gameCanvas{width:100%;height:100%;display:block;background:#2d972f}
+.sidepanel{min-width:0;display:flex;flex-direction:column;gap:10px;overflow:auto;padding-right:2px}
+.panel-card{background:linear-gradient(#101b25,#0c151e);border:1px solid #2a3946;border-radius:12px;padding:15px 16px;box-shadow:0 8px 20px rgba(0,0,0,.16)}
+.panel-card h3{margin:0 0 12px;color:#31a2ff;font-size:20px}
+.panel-card p{margin:0 0 10px;line-height:1.45}
+.panel-card strong{color:#3ca9ff}
+.panel-card ul{list-style:none;margin:0;padding:0}
+.panel-card li{padding:5px 0;font-size:16px}
+.panel-card .warn{color:#ffd426;font-weight:800}
+.panel-card label{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
+.panel-card select{background:#111a23;color:#fff;border:1px solid #394753;border-radius:8px;padding:9px 10px}
+.mini-card{margin-top:auto}
+#miniMap{display:block;width:100%;background:#207a28;border:2px solid #d7ead7}
+.statusbar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;background:linear-gradient(#101b25,#0b141d);border:1px solid #243441;border-radius:12px;overflow:hidden}
+.statusbar div{display:flex;flex-direction:column;justify-content:center;padding:10px 16px;border-right:1px solid #273541}
+.statusbar div:last-child{border-right:0}
+.statusbar b{font-size:15px;margin-bottom:4px;color:#41a8ff}
+.statusbar div:nth-child(2) b{color:#ef5148}
+.statusbar div:nth-child(3) b{color:#ffd426}
+.statusbar span{font-size:13px;color:#d8e0e6}
+.overlay{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(5,10,15,.58);backdrop-filter:blur(4px)}
+.card{width:min(90%,390px);background:#101b26;border:1px solid #273845;border-radius:18px;padding:24px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.card h1,.card h2{margin:0 0 12px}
+.card p{color:#cbd7df;line-height:1.5}
+.card button{width:100%;min-height:50px;border:0;border-radius:12px;background:#29a65a;color:#fff;font-size:16px;font-weight:900;cursor:pointer}
+.message{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:15;background:rgba(5,12,18,.85);padding:12px 22px;border-radius:14px;font-weight:1000;font-size:42px}
+.hidden{display:none!important}
+.tip-banner{position:absolute;z-index:8;left:50%;bottom:24px;transform:translateX(-50%);min-width:440px;max-width:72%;padding:10px 18px;border-radius:12px;background:rgba(4,14,18,.86);border:1px solid rgba(255,255,255,.12);text-align:center;pointer-events:none}
+.tip-banner strong,.tip-banner span,.tip-banner em{display:block}
+.tip-banner strong{font-size:18px}
+.tip-banner span{font-size:13px;color:#e4eaee;margin:4px 0}
+.tip-banner em{font-style:normal;color:#39df59;font-weight:800}
+.mobile-controls{position:absolute;inset:0;z-index:9;pointer-events:none}
+.joystick,.kick-btn,.switch-btn{pointer-events:auto}
+.joystick{position:absolute;left:28px;bottom:24px;width:160px;height:160px;border-radius:50%;background:rgba(4,12,18,.46);border:3px solid rgba(255,255,255,.18);box-shadow:inset 0 0 35px rgba(0,0,0,.45)}
+.stick{position:absolute;width:88px;height:88px;border-radius:50%;left:50%;top:50%;transform:translate(-50%,-50%);background:linear-gradient(#3c4650,#1f2830);border:3px solid rgba(255,255,255,.16)}
+.kick-btn{position:absolute;right:28px;bottom:24px;width:150px;height:150px;border-radius:50%;border:4px solid #5ab0ff;background:radial-gradient(circle at 35% 25%,#2787f5,#0650b1 72%);color:#fff;font-size:22px;font-weight:1000;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.kick-btn span{display:block;font-size:38px}
+.kick-btn.charging{transform:scale(.96);filter:brightness(.9)}
+.switch-btn{position:absolute;right:195px;bottom:55px;width:84px;height:84px;border-radius:50%;border:3px solid #6fbbff;background:#0c65ca;color:#fff;font-weight:900}
+@media (hover:hover) and (pointer:fine){
+  .joystick,.kick-btn,.switch-btn{display:none}
+  .tip-banner{bottom:18px}
+}
+@media (max-width:1050px){
+  .app{grid-template-columns:1fr}
+  .sidepanel{display:none}
+  .game-column{grid-template-rows:58px minmax(0,1fr) 70px}
+  .hud{grid-template-columns:70px 1fr 95px}
+  .badge{min-width:82px;font-size:18px}
+  .scoreboard{gap:12px;font-size:26px}
+  .timer{font-size:20px}
+  .statusbar b{font-size:12px}
+  .statusbar span{font-size:11px}
+}
+@media (max-width:700px){
+  .app{padding:0;gap:0}
+  .game-column{grid-template-rows:50px 1fr 0}
+  .statusbar{display:none}
+  .hud{border-radius:0;border-left:0;border-right:0}
+  .pitch-shell{border-radius:0}
+  .tip-banner{display:none}
+  .joystick{width:120px;height:120px;left:14px;bottom:14px}
+  .stick{width:64px;height:64px}
+  .kick-btn{width:108px;height:108px;right:14px;bottom:14px;font-size:17px}
+  .kick-btn span{font-size:28px}
+  .switch-btn{right:128px;bottom:34px;width:66px;height:66px;font-size:11px}
+}
+
+
+/* V4.1 – vizuální upgrade podle schváleného návrhu */
+.pitch-shell {
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.04),
+    0 14px 34px rgba(0,0,0,.28);
+}
+
+.hud, .panel-card, .statusbar {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.035),
+    0 8px 24px rgba(0,0,0,.14);
+}
+
+.scoreboard strong {
+  min-width: 34px;
+  text-align: center;
+  text-shadow: 0 3px 7px rgba(0,0,0,.35);
+}
+
+.badge {
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: inset 0 -4px 8px rgba(0,0,0,.16);
+}
+
+.timer {
+  text-shadow: 0 2px 8px rgba(255,212,38,.18);
+}
+
+.tip-banner {
+  background: linear-gradient(180deg, rgba(6,18,24,.94), rgba(5,13,18,.91));
+  box-shadow: 0 8px 22px rgba(0,0,0,.28);
+}
+
+.panel-card {
+  background:
+    linear-gradient(180deg, rgba(16,28,39,.98), rgba(10,20,29,.98));
+}
+
+.pause-btn {
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,.16);
+}
+
+.pause-btn:hover {
+  filter: brightness(1.08);
+}
+
+/* V4.4 – dva poločasy + Světový turnaj 64 */
+.match-clock{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;line-height:1.05}
+.match-clock small{font-size:11px;color:#9fb0bd;font-weight:900;letter-spacing:.08em;margin-bottom:5px}
+.scoreboard .badge{max-width:165px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.start-card{width:min(94%,470px)}
+.start-settings{display:grid;gap:10px;margin:16px 0 18px;text-align:left}
+.start-settings label{display:grid;grid-template-columns:1fr 1.2fr;gap:12px;align-items:center;color:#dbe5ec;font-weight:700}
+.start-settings select{width:100%;min-width:0;background:#0b151f;color:#fff;border:1px solid #3a4b58;border-radius:9px;padding:10px}
+.round-pill{display:inline-block;margin-bottom:10px;padding:6px 10px;border-radius:999px;background:#15395c;color:#73bcff;font-size:12px;font-weight:1000;letter-spacing:.06em}
+.secondary-btn{margin-top:9px!important;background:#1d2b36!important;color:#dce7ee!important;border:1px solid #364956!important}
+.tournament-info{display:grid;gap:5px;padding:10px 0 4px}
+.tournament-info strong{color:#fff;font-size:17px}
+.tournament-info span{color:#b9c7d0;font-size:13px;line-height:1.35}
+.tournament-progress{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:11px}
+.tournament-progress span{height:9px;border-radius:999px;background:#263541;border:1px solid #334755}
+.tournament-progress span.done{background:#27a85a;border-color:#35c56b}
+.tournament-progress span.current{background:#e7b928;border-color:#ffd426}
+.settings-note{font-size:13px;color:#9fb0bd;line-height:1.4!important;margin-top:12px!important}
+@media(max-width:1200px){.scoreboard .badge{max-width:120px}}
+@media(max-width:700px){
+  .match-clock small{font-size:9px}.timer{font-size:18px}
+  .scoreboard .badge{max-width:78px;min-width:60px;padding:6px 8px;font-size:13px}
+  .start-card{max-height:92%;overflow:auto}
+  .start-settings label{grid-template-columns:1fr;gap:5px}
+}
+
+/* V4.5 – skupinová fáze 16×4 */
+.groups-card{width:min(96%,980px);max-height:92%;overflow:auto;text-align:left}
+.groups-card>h2,.groups-card>p{text-align:center}
+.groups-card>.round-pill{display:table;margin-left:auto;margin-right:auto}
+.groups-card>button{position:sticky;bottom:0;margin-top:16px;box-shadow:0 -8px 20px rgba(8,17,27,.35)}
+.groups-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:14px}
+.group-mini{background:#0b151f;border:1px solid #2b3b48;border-radius:11px;padding:9px;min-width:0}
+.group-mini.my-group{border-color:#ffd426;box-shadow:inset 0 0 0 1px rgba(255,212,38,.25)}
+.group-mini h3{margin:0 0 7px;color:#70bcff;font-size:13px;text-transform:uppercase}
+.group-mini-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px;align-items:center;padding:4px 0;border-top:1px solid rgba(255,255,255,.055);font-size:11px}
+.group-mini-row:first-of-type{border-top:0}
+.group-mini-row span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#dce6ed}
+.group-mini-row b{color:#aebbc4;font-size:10px}
+.group-mini-row.me{background:rgba(255,212,38,.10);margin:0 -4px;padding-left:4px;padding-right:4px;border-radius:5px}
+.group-mini-row.me span{color:#ffe56b;font-weight:900}
+.group-table{margin-top:10px;border:1px solid #2c3d49;border-radius:9px;overflow:hidden;background:#0a141d}
+.group-table-title{padding:8px 9px;background:#162838;color:#70bcff;font-size:12px;font-weight:1000;letter-spacing:.06em}
+.group-row{display:grid;grid-template-columns:minmax(0,1fr) 24px 34px 26px;gap:4px;align-items:center;padding:6px 8px;border-top:1px solid rgba(255,255,255,.055);font-size:11px}
+.group-row span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.group-row b{text-align:center;color:#dfe8ee}
+.group-row.group-head{color:#7f919e;background:#0e1a24;font-size:10px;text-transform:uppercase}
+.group-row.qualify{box-shadow:inset 3px 0 0 #29a65a}
+.group-row.me{background:rgba(255,212,38,.08);color:#ffe56b;font-weight:900}
+.tournament-progress{grid-template-columns:repeat(6,1fr)}
+@media(max-width:900px){.groups-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.groups-grid{grid-template-columns:1fr}.groups-card{padding:16px}.group-mini-row{font-size:12px}}

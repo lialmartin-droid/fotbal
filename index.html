@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <title>Fotbal 3v3 – Turnaj 64 se skupinami</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="game.js" defer></script>
+</head>
+<body>
+  <main class="app">
+    <section class="game-column">
+      <header class="hud">
+        <button id="pauseBtn" class="pause-btn" type="button">Ⅱ</button>
+
+        <div class="scoreboard">
+          <span id="blueBadge" class="badge blue">TY</span>
+          <strong id="playerScore">0</strong>
+          <span>-</span>
+          <strong id="aiScore">0</strong>
+          <span id="redBadge" class="badge red">AI</span>
+        </div>
+
+        <div class="match-clock">
+          <small id="halfLabel">1. POLOČAS</small>
+          <div id="timer" class="timer">02:00</div>
+        </div>
+      </header>
+
+      <section class="pitch-shell">
+        <canvas id="gameCanvas" width="1200" height="760"></canvas>
+
+        <div id="message" class="message hidden">GÓL!</div>
+
+        <div class="mobile-controls">
+          <div id="joystick" class="joystick"><div id="stick" class="stick"></div></div>
+          <button id="switchBtn" class="switch-btn" type="button">HRÁČ</button>
+          <button id="kickBtn" class="kick-btn" type="button"><span>⚽</span>KOP</button>
+        </div>
+
+        <div class="tip-banner">
+          <strong>HRAJ JAKO VE FOTBALE</strong>
+          <span>Krátký stisk = přihrávka · Podržení 0,4 s a déle = střela</span>
+          <em>Po poločase si týmy vymění strany.</em>
+        </div>
+
+        <div id="startOverlay" class="overlay">
+          <div class="card start-card">
+            <h1>Fotbal 3v3</h1>
+            <p>WASD / šipky = pohyb · Q = změna hráče · mezerník = přihrávka / střela</p>
+
+            <div class="start-settings">
+              <label>Herní režim
+                <select id="gameMode">
+                  <option value="friendly">Rychlý zápas</option>
+                  <option value="tournament" selected>Světový turnaj – 64 států (skupiny + play-off)</option>
+                </select>
+              </label>
+
+              <label id="countryRow">Tvůj stát
+                <select id="countrySelect"></select>
+              </label>
+
+              <label>Délka jednoho poločasu
+                <select id="halfLength">
+                  <option value="30">30 sekund</option>
+                  <option value="60">1 minuta</option>
+                  <option value="120" selected>2 minuty</option>
+                  <option value="180">3 minuty</option>
+                  <option value="300">5 minut</option>
+                </select>
+              </label>
+            </div>
+
+            <button id="startBtn" type="button">ZAČÍT TURNAJ</button>
+          </div>
+        </div>
+
+        <div id="groupsOverlay" class="overlay hidden">
+          <div class="card groups-card">
+            <span class="round-pill">SKUPINOVÁ FÁZE</span>
+            <h2>16 skupin po 4 státech</h2>
+            <p>Každý tým odehraje 3 zápasy. První dva z každé skupiny postoupí do play-off pro 32 týmů.</p>
+            <div id="groupsGrid" class="groups-grid"></div>
+            <button id="playGroupBtn" type="button">ODEHRÁT 1. ZÁPAS</button>
+          </div>
+        </div>
+
+        <div id="halfOverlay" class="overlay hidden">
+          <div class="card">
+            <span class="round-pill">POLOČAS</span>
+            <h2 id="halfTitle">Konec 1. poločasu</h2>
+            <p id="halfText">Stav 0:0 · týmy si vymění strany.</p>
+            <button id="secondHalfBtn" type="button">ZAČÍT 2. POLOČAS</button>
+          </div>
+        </div>
+
+        <div id="endOverlay" class="overlay hidden">
+          <div class="card">
+            <span id="roundPill" class="round-pill hidden"></span>
+            <h2 id="resultTitle">Konec zápasu</h2>
+            <p id="resultText"></p>
+            <button id="restartBtn" type="button">HRÁT ZNOVU</button>
+            <button id="menuBtn" class="secondary-btn" type="button">HLAVNÍ MENU</button>
+          </div>
+        </div>
+      </section>
+
+      <footer class="statusbar">
+        <div><b>⚽ 2 POLOČASY</b><span>Po přestávce se vymění strany</span></div>
+        <div><b>🏆 TURNAJ 64</b><span>16 skupin po 4 → play-off 32 týmů</span></div>
+        <div><b>⭐ CÍL</b><span>Vyber stát a staň se mistrem</span></div>
+      </footer>
+    </section>
+
+    <aside class="sidepanel">
+      <section class="panel-card tournament-card">
+        <h3>🏆 SVĚTOVÝ TURNAJ</h3>
+        <div id="tournamentInfo" class="tournament-info">
+          <strong>64 států · 16 skupin</strong>
+          <span>4 týmy ve skupině, první dva postupují.</span>
+        </div>
+        <div id="groupTable" class="group-table hidden"></div>
+        <div id="tournamentProgress" class="tournament-progress" aria-label="Postup turnajem"></div>
+      </section>
+
+      <section class="panel-card">
+        <h3>OVLÁDÁNÍ</h3>
+        <p><b>PC:</b><br>Pohyb: WASD / šipky<br>Kop: <strong>MEZERNÍK</strong><br>Změna hráče: <strong>Q</strong> (jen ručně)</p>
+        <p><b>Mobil:</b><br>Vlevo joystick<br>Vpravo <strong>KOP</strong><br>Tlačítko <strong>HRÁČ</strong></p>
+      </section>
+
+      <section class="panel-card">
+        <h3>NASTAVENÍ</h3>
+        <label>Obtížnost
+          <select id="difficulty">
+            <option value="easy">Lehká</option>
+            <option value="normal" selected>Střední</option>
+            <option value="hard">Těžká</option>
+          </select>
+        </label>
+        <p class="settings-note">Délku poločasu vybereš před zápasem. Každý zápas má dva stejně dlouhé poločasy.</p>
+      </section>
+
+      <section class="panel-card mini-card">
+        <h3>MINIMAPA</h3>
+        <canvas id="miniMap" width="300" height="180"></canvas>
+      </section>
+    </aside>
+  </main>
+</body>
+</html>
