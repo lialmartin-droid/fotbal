@@ -312,7 +312,7 @@ function resolveTournamentRound(blueWon,summary){
 
 function makePlayer(x,y,team,number,controlled=false,keeper=false){
   return {x,y,homeX:x,homeY:y,team,number,controlled,keeper,r:keeper?31:27,
-    speed:controlled?235:(keeper?175:195),vx:0,vy:0,facingX:team==="blue"?1:-1,facingY:0,
+    speed:controlled?250:(keeper?175:195),vx:0,vy:0,facingX:team==="blue"?1:-1,facingY:0,
     aiThink:0,color:team==="blue"?"#1676e8":"#ef4b43"};
 }
 
@@ -350,7 +350,7 @@ function resetPositions(){
   const rpBase=[[W*.73,H*.32],[W*.72,H*.68],[W*.56,H*.44],[FIELD.right-38,H/2]];
   const bp=state.blueAttackRight?bpBase:bpBase.map(([x,y])=>[mirrorX(x),y]);
   const rp=state.blueAttackRight?rpBase:rpBase.map(([x,y])=>[mirrorX(x),y]);
-  blue.forEach((p,i)=>{p.x=p.homeX=bp[i][0];p.y=p.homeY=bp[i][1];p.vx=p.vy=0;p.facingX=attackSign("blue");p.facingY=0;p.controlled=i===0;p.speed=i===0?235:(p.keeper?175:195);p.aiThink=0});
+  blue.forEach((p,i)=>{p.x=p.homeX=bp[i][0];p.y=p.homeY=bp[i][1];p.vx=p.vy=0;p.facingX=attackSign("blue");p.facingY=0;p.controlled=i===0;p.speed=i===0?250:(p.keeper?175:195);p.aiThink=0});
   red.forEach((p,i)=>{p.x=p.homeX=rp[i][0];p.y=p.homeY=rp[i][1];p.vx=p.vy=0;p.facingX=attackSign("red");p.facingY=0;p.speed=p.keeper?175:195;p.aiThink=0});
   state.activeBlue=0;state.possession=null;state.kickCooldown=0;state.stealCooldown=0;state.keeperClearDelay=0;state.contestHold=0;state.contestOpponent=null;
   ball.x=W/2;ball.y=H/2;ball.vx=ball.vy=0;
@@ -519,7 +519,7 @@ function switchPlayer(){
   blue[current].speed=195;
   state.activeBlue=next.i;
   blue[state.activeBlue].controlled=true;
-  blue[state.activeBlue].speed=235;
+  blue[state.activeBlue].speed=250;
 }
 
 
@@ -630,9 +630,12 @@ function updateBlueAI(dt){
 }
 
 function diffSpeed(){
-  const base=difficultyEl.value==="easy"?170:difficultyEl.value==="hard"?215:192;
-  const countryBonus=tournament.active&&tournament.opponent?(tournament.opponent.rating-80)*.65:0;
-  return clamp(base+countryBonus,155,225);
+  const mode=difficultyEl.value;
+  const base=mode==="rookie"?138:mode==="easy"?158:mode==="hard"?205:178;
+  // Síla států je na lehčích obtížnostech záměrně utlumená, aby turnaj zůstal hratelný.
+  const ratingFactor=mode==="rookie"?.12:mode==="easy"?.28:mode==="hard"?.72:.48;
+  const countryBonus=tournament.active&&tournament.opponent?(tournament.opponent.rating-80)*ratingFactor:0;
+  return clamp(base+countryBonus,128,218);
 }
 
 function updateRedAI(dt){
@@ -647,47 +650,51 @@ function updateRedAI(dt){
       if(holder===p)keeperClear(p);
       else{
         const ty=clamp(ball.y,GOAL_TOP+38,GOAL_BOTTOM-38);
-        moveAI(p,ownGoalIsLeft("red")?FIELD.left+42:FIELD.right-42,ty,dt,Math.max(145,base-25));
+        const keeperSpeed=difficultyEl.value==="rookie"?118:difficultyEl.value==="easy"?132:Math.max(145,base-25);
+        moveAI(p,ownGoalIsLeft("red")?FIELD.left+42:FIELD.right-42,ty,dt,keeperSpeed);
       }
       return;
     }
 
     if(holder===p){
       const attackY=clamp(p.y+(H/2-p.y)*.14,FIELD.top+72,FIELD.bottom-72);
-      moveAI(p,attacksRight("red")?FIELD.right-135:FIELD.left+135,attackY,dt,base+5);
+      const carrySpeed=difficultyEl.value==="rookie"?base-5:base+5;
+      moveAI(p,attacksRight("red")?FIELD.right-135:FIELD.left+135,attackY,dt,carrySpeed);
       const pressure=nearestOpponentDistance(p);
       const goalDistance=Math.abs((attacksRight("red")?FIELD.right:FIELD.left)-p.x);
       const canShoot=goalDistance<W*.30&&Math.abs(p.y-H/2)<205;
-      if(canShoot&&p.aiThink<=0&&state.kickCooldown<=0){aiKick(p,true);p.aiThink=.85;return}
-      if(pressure<92&&p.aiThink<=0&&state.kickCooldown<=0){
+      if(canShoot&&p.aiThink<=0&&state.kickCooldown<=0){aiKick(p,true);p.aiThink=difficultyEl.value==="rookie"?1.45:difficultyEl.value==="easy"?1.15:.85;return}
+      if(pressure<(difficultyEl.value==="rookie"?62:difficultyEl.value==="easy"?76:92)&&p.aiThink<=0&&state.kickCooldown<=0){
         const target=findForwardPassTarget(p);
-        if(target){aiKick(p,false);p.aiThink=.9;return}
+        if(target){aiKick(p,false);p.aiThink=difficultyEl.value==="rookie"?1.35:difficultyEl.value==="easy"?1.1:.9;return}
       }
       return;
     }
 
     if(holder&&holder.team==="red"){
       const t=supportTarget(holder,p,attacksRight("red"));
-      moveAI(p,t.x,t.y,dt,Math.max(158,base-14));
+      moveAI(p,t.x,t.y,dt,Math.max(difficultyEl.value==="rookie"?128:145,base-18));
       return;
     }
 
     if(holder&&holder.team==="blue"){
       if(i===defender){
-        moveAI(p,holder.x-sign*18,holder.y,dt,base+18);
+        const pressGap=difficultyEl.value==="rookie"?82:difficultyEl.value==="easy"?58:22;
+        const pressSpeed=difficultyEl.value==="rookie"?base-10:difficultyEl.value==="easy"?base:base+18;
+        moveAI(p,holder.x-sign*pressGap,holder.y,dt,pressSpeed);
       }else{
         const coverX=clamp(holder.x-sign*170,FIELD.left+145,FIELD.right-145);
         const coverY=clamp(p.homeY*.58+holder.y*.42,FIELD.top+80,FIELD.bottom-80);
-        moveAI(p,coverX,coverY,dt,Math.max(155,base-22));
+        moveAI(p,coverX,coverY,dt,Math.max(difficultyEl.value==="rookie"?125:142,base-28));
       }
       return;
     }
 
-    if(i===looseChaser)moveAI(p,ball.x,ball.y,dt,base);
+    if(i===looseChaser)moveAI(p,ball.x,ball.y,dt,difficultyEl.value==="rookie"?base-8:base);
     else{
       const shapeX=clamp(p.homeX+(ball.x-W/2)*.18,FIELD.left+120,FIELD.right-120);
       const shapeY=clamp(p.homeY+(ball.y-H/2)*.12,FIELD.top+75,FIELD.bottom-75);
-      moveAI(p,shapeX,shapeY,dt,Math.max(148,base-30));
+      moveAI(p,shapeX,shapeY,dt,Math.max(difficultyEl.value==="rookie"?120:138,base-34));
     }
   });
 }
@@ -706,7 +713,8 @@ function setPossession(p){
   state.lastTouchTeam=p.team;
   state.keeperClearDelay=p.keeper?.12:0;
   state.contestHold=0;state.contestOpponent=null;
-  p.aiThink=Math.max(p.aiThink,.42);
+  const firstThink=(p.team==="red"&&difficultyEl.value==="rookie")?.78:(p.team==="red"&&difficultyEl.value==="easy")?.58:.42;
+  p.aiThink=Math.max(p.aiThink,firstThink);
   ball.vx=ball.vy=0;
 }
 function clearPossession(){state.possession=null;state.keeperClearDelay=0;state.contestHold=0;state.contestOpponent=null}
@@ -741,8 +749,14 @@ function trySteal(dt){
   if(!contact){state.contestHold=Math.max(0,state.contestHold-dt*2.2);state.contestOpponent=null;return}
   if(state.contestOpponent!==n){state.contestOpponent=n;state.contestHold=0}
   state.contestHold+=dt;
-  const needed=Math.hypot(h.vx,h.vy)>160?.24:.18;
-  if(state.contestHold>=needed){setPossession(n);state.stealCooldown=.62}
+  let needed=Math.hypot(h.vx,h.vy)>160?.24:.18;
+  // Když soupeř bere míč hráči, na lehčích obtížnostech musí být v souboji déle.
+  if(h.team==="blue"&&n.team==="red"){
+    if(difficultyEl.value==="rookie")needed=.62;
+    else if(difficultyEl.value==="easy")needed=.44;
+    else if(difficultyEl.value==="normal")needed=.30;
+  }
+  if(state.contestHold>=needed){setPossession(n);state.stealCooldown=difficultyEl.value==="rookie"?.85:.62}
 }
 
 function pointSegmentDistance(px,py,ax,ay,bx,by){
@@ -805,9 +819,11 @@ function aiKick(p,strong){
   if(state.possession!==p||state.kickCooldown>0)return;
   const goalX=attackGoalX(p.team);
   const target=strong?null:findForwardPassTarget(p);
-  const accuracyBase=difficultyEl.value==="hard"?58:difficultyEl.value==="easy"?92:74;
+  const mode=difficultyEl.value;
+  const accuracyBase=mode==="rookie"?145:mode==="easy"?112:mode==="hard"?58:82;
   const rating=tournament.active&&p.team==="red"&&tournament.opponent?tournament.opponent.rating:80;
-  const spread=Math.max(44,accuracyBase-(rating-80)*1.2);
+  const ratingAim=mode==="rookie"?.25:mode==="easy"?.55:mode==="hard"?1.2:.9;
+  const spread=Math.max(mode==="rookie"?92:44,accuracyBase-(rating-80)*ratingAim);
   const shotY=H/2+(H/2-p.y)*.12+(Math.random()*2-1)*spread;
   let dir=strong
     ?norm(goalX-p.x,shotY-p.y)
@@ -819,7 +835,7 @@ function aiKick(p,strong){
   clearPossession();
   ball.x=p.x+dir.x*(p.r+ball.r+8);
   ball.y=p.y+dir.y*(p.r+ball.r+8);
-  const pow=strong?620:355;
+  const pow=strong?(mode==="rookie"?520:mode==="easy"?565:mode==="hard"?635:600):(mode==="rookie"?300:mode==="easy"?325:mode==="hard"?365:345);
   ball.vx=dir.x*pow;ball.vy=dir.y*pow;
   state.lastTouchTeam=p.team;state.kickCooldown=.30;state.stealCooldown=.24;
 }
