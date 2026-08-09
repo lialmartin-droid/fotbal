@@ -2,64 +2,110 @@
 <html lang="cs">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
   <title>Fotbal 3v3</title>
   <link rel="stylesheet" href="style.css">
   <script src="game.js" defer></script>
 </head>
 <body>
-  <main class="game-shell">
-    <header class="topbar">
-      <div class="score">
-        <span class="team blue">TY</span>
-        <strong id="playerScore">0</strong>
-        <span>:</span>
-        <strong id="aiScore">0</strong>
-        <span class="team red">AI</span>
-      </div>
-      <div id="timer" class="timer">02:00</div>
-    </header>
+  <main class="app">
+    <section class="game-column">
+      <header class="hud">
+        <button id="pauseBtn" class="pause-btn" type="button">Ⅱ</button>
 
-    <section class="field-wrap">
-      <canvas id="gameCanvas" width="900" height="1400"></canvas>
-
-      <div id="message" class="game-message hidden">GÓL!</div>
-
-      <div id="startOverlay" class="overlay">
-        <div class="overlay-card">
-          <h1>Fotbal 3v3</h1>
-          <p>
-            PC: WASD nebo šipky.<br>
-            Mezerník = přihrávka / střela.<br>
-            Mobil: joystick + tlačítko KOP.
-          </p>
-          <button id="startBtn" type="button">ZAČÍT ZÁPAS</button>
-          <small class="start-hint">Krátké stisknutí = přihrávka, delší podržení = silnější střela.</small>
+        <div class="scoreboard">
+          <span class="badge blue">TY</span>
+          <strong id="playerScore">0</strong>
+          <span>-</span>
+          <strong id="aiScore">0</strong>
+          <span class="badge red">AI</span>
         </div>
-      </div>
 
-      <div id="endOverlay" class="overlay hidden">
-        <div class="overlay-card">
-          <h2 id="resultTitle">Konec zápasu</h2>
-          <p id="resultText"></p>
-          <button id="restartBtn" type="button">HRÁT ZNOVU</button>
+        <div id="timer" class="timer">02:00</div>
+      </header>
+
+      <section class="pitch-shell">
+        <canvas id="gameCanvas" width="1200" height="760"></canvas>
+
+        <div id="message" class="message hidden">GÓL!</div>
+
+        <div class="mobile-controls">
+          <div id="joystick" class="joystick"><div id="stick" class="stick"></div></div>
+
+          <button id="switchBtn" class="switch-btn" type="button">HRÁČ</button>
+          <button id="kickBtn" class="kick-btn" type="button"><span>⚽</span>KOP</button>
         </div>
-      </div>
+
+        <div class="tip-banner">
+          <strong>ÚTOČ A STŘÍLEJ!</strong>
+          <span>Krátké stisknutí = přihrávka · Dlouhé podržení = střela</span>
+          <em>Střílej do prázdné brány!</em>
+        </div>
+
+        <div id="startOverlay" class="overlay">
+          <div class="card">
+            <h1>Fotbal 3v3</h1>
+            <p>WASD / šipky = pohyb · Q = změna hráče · mezerník = přihrávka / střela</p>
+            <button id="startBtn" type="button">ZAČÍT ZÁPAS</button>
+          </div>
+        </div>
+
+        <div id="endOverlay" class="overlay hidden">
+          <div class="card">
+            <h2 id="resultTitle">Konec zápasu</h2>
+            <p id="resultText"></p>
+            <button id="restartBtn" type="button">HRÁT ZNOVU</button>
+          </div>
+        </div>
+      </section>
+
+      <footer class="statusbar">
+        <div><b>🚀 AI SPOLUHRÁČI</b><span>Nabízejí se a útočí</span></div>
+        <div><b>🛡️ AI SOUPEŘI</b><span>Brání, napadají a hlídají pozice</span></div>
+        <div><b>⭐ CÍL</b><span>Dávej góly a vyhraj zápas!</span></div>
+      </footer>
     </section>
 
-    <section class="controls">
-      <div id="joystick" class="joystick">
-        <div id="stick" class="stick"></div>
-      </div>
+    <aside class="sidepanel">
+      <section class="panel-card">
+        <h3>OVLÁDÁNÍ</h3>
+        <p><b>PC:</b><br>Pohyb: WASD / šipky<br>Kop: <strong>MEZERNÍK</strong><br>Změna hráče: <strong>Q</strong></p>
+        <p><b>Mobil:</b><br>Vlevo joystick<br>Vpravo tlačítko <strong>KOP</strong><br>Tlačítko <strong>HRÁČ</strong></p>
+      </section>
 
-      <div class="control-help">
-        <strong>OVLÁDÁNÍ</strong>
-        <span>WASD / šipky</span>
-        <small>Žlutý kruh = aktivní hráč.</small>
-      </div>
+      <section class="panel-card">
+        <h3>TIPY</h3>
+        <ul>
+          <li>✓ Běž dopředu</li>
+          <li>✓ Přihrávej dopředu</li>
+          <li>✓ Střílej do prázdné brány</li>
+          <li class="warn">✓ Nedávej míč dozadu!</li>
+        </ul>
+      </section>
 
-      <button id="kickBtn" class="kick-btn" type="button">KOP</button>
-    </section>
+      <section class="panel-card">
+        <h3>NASTAVENÍ</h3>
+        <label>Obtížnost
+          <select id="difficulty">
+            <option value="easy">Lehká</option>
+            <option value="normal" selected>Střední</option>
+            <option value="hard">Těžká</option>
+          </select>
+        </label>
+        <label>Délka zápasu
+          <select id="matchLength">
+            <option value="60">1 minuta</option>
+            <option value="120" selected>2 minuty</option>
+            <option value="180">3 minuty</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="panel-card mini-card">
+        <h3>MINIMAPA</h3>
+        <canvas id="miniMap" width="300" height="180"></canvas>
+      </section>
+    </aside>
   </main>
 </body>
 </html>
