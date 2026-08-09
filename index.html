@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Fotbal 3v3</title>
   <link rel="stylesheet" href="style.css">
+  <script src="game.js" defer></script>
 </head>
 <body>
   <main class="game-shell">
@@ -32,7 +33,8 @@
             Mobil: joystick vlevo.<br>
             Kop je automatický při kontaktu s míčem.
           </p>
-          <button id="startBtn">ZAČÍT ZÁPAS</button>
+          <button id="startBtn" type="button">ZAČÍT ZÁPAS</button>
+          <small class="start-hint">Na PC lze spustit také Enterem nebo mezerníkem.</small>
         </div>
       </div>
 
@@ -40,24 +42,22 @@
         <div class="overlay-card">
           <h2 id="resultTitle">Konec zápasu</h2>
           <p id="resultText"></p>
-          <button id="restartBtn">HRÁT ZNOVU</button>
+          <button id="restartBtn" type="button">HRÁT ZNOVU</button>
         </div>
       </div>
     </section>
 
-    <section class="controls">
+    <section class="controls" id="mobileControls">
       <div id="joystick" class="joystick">
         <div id="stick" class="stick"></div>
       </div>
 
       <div class="control-help">
-        <strong>PC</strong>
+        <strong>OVLÁDÁNÍ</strong>
         <span>WASD / šipky</span>
         <small>Aktivní hráč má žlutý kruh.</small>
       </div>
     </section>
   </main>
-
-  <script src="game.js"></script>
 </body>
 </html>

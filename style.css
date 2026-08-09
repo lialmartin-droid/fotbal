@@ -126,7 +126,7 @@ canvas {
 }
 
 .control-help strong {
-  font-size: 18px;
+  font-size: 16px;
   color: white;
 }
 
@@ -176,6 +176,17 @@ canvas {
   color: white;
   font-size: 16px;
   font-weight: 900;
+  cursor: pointer;
+}
+
+.overlay-card button:hover {
+  filter: brightness(1.08);
+}
+
+.start-hint {
+  display: block;
+  margin-top: 10px;
+  color: #8193a5;
 }
 
 .goal-message {
@@ -193,7 +204,37 @@ canvas {
   display: none !important;
 }
 
-@media (max-height: 700px) {
+/* Na běžném PC joystick úplně schováme a hřiště dostane více místa. */
+@media (hover: hover) and (pointer: fine) {
+  .game-shell {
+    grid-template-rows: 56px 1fr 54px;
+  }
+
+  .controls {
+    justify-content: center;
+    padding: 7px 14px;
+  }
+
+  .joystick {
+    display: none;
+  }
+
+  .control-help {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .control-help strong,
+  .control-help span,
+  .control-help small {
+    display: inline;
+    margin: 0;
+    max-width: none;
+  }
+}
+
+@media (max-height: 700px) and (pointer: coarse) {
   .game-shell {
     grid-template-rows: 50px 1fr 112px;
   }
