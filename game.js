@@ -25,7 +25,7 @@ const FIELD = {
   right: W - 65,
   top: 55,
   bottom: H - 55,
-  goalWidth: 280,
+  goalWidth: 270,
   goalDepth: 70
 };
 
@@ -40,38 +40,42 @@ const state = {
   joyY: 0,
   keys: Object.create(null),
   activeBlue: 0,
-  frameId: null
+  frameId: null,
+  lastTouchTeam: "blue",
+  restartTimer: null
 };
 
 function makePlayer(x, y, team, number, controlled = false) {
   return {
     x, y, homeX: x, homeY: y,
     team, number, controlled,
-    r: 39,
-    speed: controlled ? 365 : 300,
+    r: 32,
+    speed: controlled ? 390 : 305,
     vx: 0, vy: 0,
     color: team === "blue" ? "#287cff" : "#ef4d47"
   };
 }
 
 const blue = [
-  makePlayer(W / 2, H * 0.76, "blue", 10, true),
-  makePlayer(W * 0.28, H * 0.62, "blue", 7),
-  makePlayer(W * 0.72, H * 0.62, "blue", 11)
+  makePlayer(W / 2, H * .77, "blue", 10, true),
+  makePlayer(W * .28, H * .64, "blue", 7),
+  makePlayer(W * .72, H * .64, "blue", 11)
 ];
 
 const red = [
-  makePlayer(W / 2, H * 0.24, "red", 9),
-  makePlayer(W * 0.28, H * 0.38, "red", 6),
-  makePlayer(W * 0.72, H * 0.38, "red", 8)
+  makePlayer(W / 2, H * .23, "red", 9),
+  makePlayer(W * .28, H * .36, "red", 6),
+  makePlayer(W * .72, H * .36, "red", 8)
 ];
 
 const ball = {
-  x: W / 2, y: H / 2,
-  r: 24,
-  vx: 0, vy: 0,
-  friction: 0.987,
-  maxSpeed: 700
+  x: W / 2,
+  y: H / 2,
+  r: 21,
+  vx: 0,
+  vy: 0,
+  friction: .984,
+  maxSpeed: 790
 };
 
 function clamp(v, min, max) {
@@ -83,17 +87,23 @@ function norm(x, y) {
   return { x: x / d, y: y / d };
 }
 
+function showMessage(text, duration = 650) {
+  message.textContent = text;
+  message.classList.remove("hidden");
+  clearTimeout(showMessage.timer);
+  showMessage.timer = setTimeout(() => message.classList.add("hidden"), duration);
+}
+
 function resetPositions() {
   const bp = [
-    [W / 2, H * 0.76],
-    [W * 0.28, H * 0.62],
-    [W * 0.72, H * 0.62]
+    [W / 2, H * .77],
+    [W * .28, H * .64],
+    [W * .72, H * .64]
   ];
-
   const rp = [
-    [W / 2, H * 0.24],
-    [W * 0.28, H * 0.38],
-    [W * 0.72, H * 0.38]
+    [W / 2, H * .23],
+    [W * .28, H * .36],
+    [W * .72, H * .36]
   ];
 
   blue.forEach((p, i) => {
@@ -101,7 +111,7 @@ function resetPositions() {
     p.y = p.homeY = bp[i][1];
     p.vx = p.vy = 0;
     p.controlled = i === 0;
-    p.speed = i === 0 ? 365 : 300;
+    p.speed = i === 0 ? 390 : 305;
   });
 
   red.forEach((p, i) => {
@@ -118,29 +128,24 @@ function resetPositions() {
 }
 
 function resetMatch() {
+  clearTimeout(state.restartTimer);
   state.time = 120;
   state.blueScore = 0;
   state.redScore = 0;
   state.paused = false;
-
+  state.lastTouchTeam = "blue";
   playerScoreEl.textContent = "0";
   aiScoreEl.textContent = "0";
   timerEl.textContent = "02:00";
-
   resetPositions();
 }
 
 function startGame() {
-  if (state.frameId) {
-    cancelAnimationFrame(state.frameId);
-    state.frameId = null;
-  }
-
+  if (state.frameId) cancelAnimationFrame(state.frameId);
   resetMatch();
   startOverlay.classList.add("hidden");
   endOverlay.classList.add("hidden");
   message.classList.add("hidden");
-
   state.running = true;
   state.lastTime = performance.now();
   state.frameId = requestAnimationFrame(loop);
@@ -148,14 +153,9 @@ function startGame() {
 
 function finishGame() {
   state.running = false;
-
-  if (state.blueScore > state.redScore) {
-    resultTitle.textContent = "VÝHRA!";
-  } else if (state.blueScore < state.redScore) {
-    resultTitle.textContent = "PROHRA";
-  } else {
-    resultTitle.textContent = "REMÍZA";
-  }
+  if (state.blueScore > state.redScore) resultTitle.textContent = "VÝHRA!";
+  else if (state.blueScore < state.redScore) resultTitle.textContent = "PROHRA";
+  else resultTitle.textContent = "REMÍZA";
 
   resultText.textContent = `Výsledek ${state.blueScore}:${state.redScore}`;
   endOverlay.classList.remove("hidden");
@@ -163,7 +163,6 @@ function finishGame() {
 
 function updateTimer(dt) {
   if (state.paused) return;
-
   state.time -= dt;
 
   if (state.time <= 0) {
@@ -179,15 +178,17 @@ function updateTimer(dt) {
 }
 
 function keyboardVector() {
-  let x = 0;
-  let y = 0;
-
+  let x = 0, y = 0;
   if (state.keys.arrowleft || state.keys.a) x--;
   if (state.keys.arrowright || state.keys.d) x++;
   if (state.keys.arrowup || state.keys.w) y--;
   if (state.keys.arrowdown || state.keys.s) y++;
-
   return (x || y) ? norm(x, y) : { x: 0, y: 0 };
+}
+
+function keepPlayerInField(p) {
+  p.x = clamp(p.x, FIELD.left + p.r, FIELD.right - p.r);
+  p.y = clamp(p.y, FIELD.top + p.r, FIELD.bottom - p.r);
 }
 
 function controlHuman(dt) {
@@ -195,8 +196,7 @@ function controlHuman(dt) {
   let input = keyboardVector();
 
   if (
-    input.x === 0 &&
-    input.y === 0 &&
+    input.x === 0 && input.y === 0 &&
     (Math.abs(state.joyX) > .02 || Math.abs(state.joyY) > .02)
   ) {
     input = norm(state.joyX, state.joyY);
@@ -204,16 +204,9 @@ function controlHuman(dt) {
 
   p.vx = input.x * p.speed;
   p.vy = input.y * p.speed;
-
   p.x += p.vx * dt;
   p.y += p.vy * dt;
-
-  keepInField(p);
-}
-
-function keepInField(p) {
-  p.x = clamp(p.x, FIELD.left + p.r, FIELD.right - p.r);
-  p.y = clamp(p.y, FIELD.top + p.r, FIELD.bottom - p.r);
+  keepPlayerInField(p);
 }
 
 function chooseBestBluePlayer() {
@@ -231,14 +224,12 @@ function chooseBestBluePlayer() {
   const current = blue[state.activeBlue];
   const currentD = Math.hypot(ball.x - current.x, ball.y - current.y);
 
-  if (nearest !== state.activeBlue && best + 95 < currentD) {
+  if (nearest !== state.activeBlue && best + 135 < currentD) {
     blue[state.activeBlue].controlled = false;
-    blue[state.activeBlue].speed = 300;
-
+    blue[state.activeBlue].speed = 305;
     state.activeBlue = nearest;
-
     blue[state.activeBlue].controlled = true;
-    blue[state.activeBlue].speed = 365;
+    blue[state.activeBlue].speed = 390;
   }
 }
 
@@ -247,9 +238,9 @@ function moveAI(p, tx, ty, dt, speed) {
   const dy = ty - p.y;
   const d = Math.hypot(dx, dy);
 
-  if (d < 12) {
-    p.vx *= .65;
-    p.vy *= .65;
+  if (d < 16) {
+    p.vx *= .55;
+    p.vy *= .55;
   } else {
     const n = norm(dx, dy);
     p.vx = n.x * speed;
@@ -258,59 +249,72 @@ function moveAI(p, tx, ty, dt, speed) {
 
   p.x += p.vx * dt;
   p.y += p.vy * dt;
-  keepInField(p);
+  keepPlayerInField(p);
 }
 
 function updateBlueAI(dt) {
+  const active = blue[state.activeBlue];
+
+  // Pouze jeden spoluhráč smí aktivně napadat míč.
+  let supportIndex = -1;
+  let supportDist = Infinity;
+
+  blue.forEach((p, i) => {
+    if (i === state.activeBlue) return;
+    const d = Math.hypot(ball.x - p.x, ball.y - p.y);
+    if (d < supportDist) {
+      supportDist = d;
+      supportIndex = i;
+    }
+  });
+
   blue.forEach((p, i) => {
     if (i === state.activeBlue) return;
 
+    const side = p.homeX < W / 2 ? -1 : 1;
     let tx = p.homeX;
     let ty = p.homeY;
 
-    const myD = Math.hypot(ball.x - p.x, ball.y - p.y);
-    const active = blue[state.activeBlue];
     const activeD = Math.hypot(ball.x - active.x, ball.y - active.y);
 
-    if (myD + 110 < activeD) {
+    if (i === supportIndex && supportDist + 150 < activeD) {
       tx = ball.x;
       ty = ball.y;
     } else if (ball.y < H * .62) {
-      const side = p.homeX < W / 2 ? -1 : 1;
-      tx = clamp(ball.x + side * 155, FIELD.left + 80, FIELD.right - 80);
-      ty = clamp(ball.y + 160, H * .42, H * .72);
+      tx = clamp(W / 2 + side * 190, FIELD.left + 90, FIELD.right - 90);
+      ty = clamp(ball.y + 180, H * .44, H * .70);
     }
 
-    moveAI(p, tx, ty, dt, 285);
+    moveAI(p, tx, ty, dt, 280);
   });
 }
 
 function updateRedAI(dt) {
-  let closest = 0;
-  let closestD = Infinity;
+  let presser = 0;
+  let best = Infinity;
 
   red.forEach((p, i) => {
     const d = Math.hypot(ball.x - p.x, ball.y - p.y);
-    if (d < closestD) {
-      closestD = d;
-      closest = i;
+    if (d < best) {
+      best = d;
+      presser = i;
     }
   });
 
   red.forEach((p, i) => {
-    let tx = p.homeX;
-    let ty = p.homeY;
+    const side = p.homeX < W / 2 ? -1 : 1;
+    let tx, ty;
 
-    if (i === closest) {
+    if (i === presser) {
       tx = ball.x;
       ty = ball.y;
     } else {
-      const side = p.homeX < W / 2 ? -1 : 1;
-      tx = clamp(ball.x + side * 165, FIELD.left + 80, FIELD.right - 80);
-      ty = clamp(ball.y - 170, H * .24, H * .57);
+      // Ostatní drží rozestupy místo tlačenice.
+      tx = clamp(W / 2 + side * 185, FIELD.left + 90, FIELD.right - 90);
+      ty = clamp(ball.y - 210, H * .23, H * .52);
     }
 
-    moveAI(p, tx, ty, dt, i === closest ? 310 : 272);
+    moveAI(p, tx, ty, dt, i === presser ? 310 : 265);
   });
 }
 
@@ -322,12 +326,21 @@ function resolvePlayerCollision(a, b) {
 
   if (d > 0 && d < minD) {
     const n = norm(dx, dy);
-    const overlap = (minD - d) / 2;
+    const overlap = minD - d;
 
-    a.x -= n.x * overlap;
-    a.y -= n.y * overlap;
-    b.x += n.x * overlap;
-    b.y += n.y * overlap;
+    // Menší posun než předtím => hráči se méně "zamknou".
+    a.x -= n.x * overlap * .38;
+    a.y -= n.y * overlap * .38;
+    b.x += n.x * overlap * .38;
+    b.y += n.y * overlap * .38;
+
+    a.vx *= .82;
+    a.vy *= .82;
+    b.vx *= .82;
+    b.vy *= .82;
+
+    keepPlayerInField(a);
+    keepPlayerInField(b);
   }
 }
 
@@ -338,23 +351,26 @@ function collideBallWithPlayer(p) {
   const minD = ball.r + p.r;
 
   if (d > 0 && d < minD) {
+    state.lastTouchTeam = p.team;
+
     const n = norm(dx, dy);
     const overlap = minD - d;
-
-    ball.x += n.x * overlap;
-    ball.y += n.y * overlap;
+    ball.x += n.x * (overlap + 2);
+    ball.y += n.y * (overlap + 2);
 
     const playerSpeed = Math.hypot(p.vx, p.vy);
 
-    if (playerSpeed > 35) {
+    if (playerSpeed > 45) {
+      // Klíčová změna: směr míče se nastaví podle pohybu hráče,
+      // takže jde míč z rohu/tlačenice opravdu vyvést.
       const move = norm(p.vx, p.vy);
-      const touch = p.controlled ? 300 : 275;
+      const power = p.controlled ? 455 : 390;
 
-      ball.vx += move.x * touch + n.x * 55;
-      ball.vy += move.y * touch + n.y * 55;
+      ball.vx = ball.vx * .20 + move.x * power + n.x * 60;
+      ball.vy = ball.vy * .20 + move.y * power + n.y * 60;
     } else {
-      ball.vx += n.x * 85;
-      ball.vy += n.y * 85;
+      ball.vx += n.x * 115;
+      ball.vy += n.y * 115;
     }
 
     const speed = Math.hypot(ball.vx, ball.vy);
@@ -363,6 +379,61 @@ function collideBallWithPlayer(p) {
       ball.vy = ball.vy / speed * ball.maxSpeed;
     }
   }
+}
+
+function restartPlay(type, team, x, y) {
+  if (state.paused || !state.running) return;
+
+  state.paused = true;
+  ball.vx = 0;
+  ball.vy = 0;
+
+  showMessage(type, 700);
+
+  state.restartTimer = setTimeout(() => {
+    if (!state.running) return;
+
+    // Položíme míč vždy trochu dovnitř hřiště, aby se okamžitě znovu nezasekl.
+    ball.x = clamp(x, FIELD.left + 70, FIELD.right - 70);
+    ball.y = clamp(y, FIELD.top + 85, FIELD.bottom - 85);
+
+    // Malý automatický rozehrávací impulz do hřiště.
+    if (type === "AUT") {
+      const fromLeft = x <= FIELD.left + 10;
+      ball.vx = fromLeft ? 155 : -155;
+      ball.vy = team === "blue" ? -35 : 35;
+    } else if (type === "ROH") {
+      ball.vx = x < W / 2 ? 130 : -130;
+      ball.vy = team === "blue" ? -165 : 165;
+    } else {
+      ball.vx = 0;
+      ball.vy = team === "blue" ? -150 : 150;
+    }
+
+    state.lastTouchTeam = team;
+    state.paused = false;
+  }, 720);
+}
+
+function score(team) {
+  if (state.paused) return;
+  state.paused = true;
+
+  if (team === "blue") {
+    state.blueScore++;
+    playerScoreEl.textContent = state.blueScore;
+    showMessage("GÓL!", 900);
+  } else {
+    state.redScore++;
+    aiScoreEl.textContent = state.redScore;
+    showMessage("GÓL SOUPEŘE", 900);
+  }
+
+  state.restartTimer = setTimeout(() => {
+    if (!state.running) return;
+    resetPositions();
+    state.paused = false;
+  }, 950);
 }
 
 function updateBall(dt) {
@@ -374,54 +445,49 @@ function updateBall(dt) {
 
   const goalL = W / 2 - FIELD.goalWidth / 2;
   const goalR = W / 2 + FIELD.goalWidth / 2;
-  const inGoal = ball.x > goalL + 5 && ball.x < goalR - 5;
+  const inGoalMouth = ball.x > goalL && ball.x < goalR;
 
-  if (ball.x - ball.r < FIELD.left) {
-    ball.x = FIELD.left + ball.r;
-    ball.vx = Math.abs(ball.vx) * .68;
+  // AUTY - už žádné odrážení od bočních zdí.
+  if (ball.x + ball.r < FIELD.left) {
+    const team = state.lastTouchTeam === "blue" ? "red" : "blue";
+    restartPlay("AUT", team, FIELD.left, ball.y);
+    return;
   }
 
-  if (ball.x + ball.r > FIELD.right) {
-    ball.x = FIELD.right - ball.r;
-    ball.vx = -Math.abs(ball.vx) * .68;
+  if (ball.x - ball.r > FIELD.right) {
+    const team = state.lastTouchTeam === "blue" ? "red" : "blue";
+    restartPlay("AUT", team, FIELD.right, ball.y);
+    return;
   }
 
-  if (ball.y - ball.r < FIELD.top) {
-    if (inGoal) return score("blue");
-    ball.y = FIELD.top + ball.r;
-    ball.vy = Math.abs(ball.vy) * .68;
+  // Branková čára.
+  if (ball.y + ball.r < FIELD.top) {
+    if (inGoalMouth) {
+      score("blue");
+      return;
+    }
+
+    // Pokud se poslední dotkl obránce, je roh. Jinak odkop od brány.
+    if (state.lastTouchTeam === "red") {
+      restartPlay("ROH", "blue", ball.x < W/2 ? FIELD.left : FIELD.right, FIELD.top);
+    } else {
+      restartPlay("ODKOP", "red", W / 2, FIELD.top + 145);
+    }
+    return;
   }
 
-  if (ball.y + ball.r > FIELD.bottom) {
-    if (inGoal) return score("red");
-    ball.y = FIELD.bottom - ball.r;
-    ball.vy = -Math.abs(ball.vy) * .68;
+  if (ball.y - ball.r > FIELD.bottom) {
+    if (inGoalMouth) {
+      score("red");
+      return;
+    }
+
+    if (state.lastTouchTeam === "blue") {
+      restartPlay("ROH", "red", ball.x < W/2 ? FIELD.left : FIELD.right, FIELD.bottom);
+    } else {
+      restartPlay("ODKOP", "blue", W / 2, FIELD.bottom - 145);
+    }
   }
-}
-
-function score(team) {
-  if (state.paused) return;
-
-  state.paused = true;
-
-  if (team === "blue") {
-    state.blueScore++;
-    playerScoreEl.textContent = state.blueScore;
-    message.textContent = "GÓL!";
-  } else {
-    state.redScore++;
-    aiScoreEl.textContent = state.redScore;
-    message.textContent = "GÓL SOUPEŘE";
-  }
-
-  message.classList.remove("hidden");
-
-  setTimeout(() => {
-    if (!state.running) return;
-    resetPositions();
-    message.classList.add("hidden");
-    state.paused = false;
-  }, 900);
 }
 
 function update(dt) {
@@ -449,15 +515,13 @@ function update(dt) {
 
 function drawGoal(y, top) {
   const x = W / 2 - FIELD.goalWidth / 2;
+
   ctx.save();
   ctx.strokeStyle = "rgba(255,255,255,.72)";
   ctx.lineWidth = 5;
 
-  if (top) {
-    ctx.strokeRect(x, y - FIELD.goalDepth, FIELD.goalWidth, FIELD.goalDepth);
-  } else {
-    ctx.strokeRect(x, y, FIELD.goalWidth, FIELD.goalDepth);
-  }
+  if (top) ctx.strokeRect(x, y - FIELD.goalDepth, FIELD.goalWidth, FIELD.goalDepth);
+  else ctx.strokeRect(x, y, FIELD.goalWidth, FIELD.goalDepth);
 
   ctx.restore();
 }
@@ -506,9 +570,9 @@ function drawPlayer(p) {
 
   if (p.controlled) {
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r + 12, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, p.r + 11, 0, Math.PI * 2);
     ctx.strokeStyle = "#ffd84d";
-    ctx.lineWidth = 8;
+    ctx.lineWidth = 7;
     ctx.stroke();
   }
 
@@ -526,7 +590,7 @@ function drawPlayer(p) {
   ctx.stroke();
 
   ctx.fillStyle = "#fff";
-  ctx.font = "900 24px sans-serif";
+  ctx.font = "900 22px sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(p.number, p.x, p.y + 1);
@@ -551,7 +615,7 @@ function drawBall() {
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.arc(ball.x, ball.y, 8, 0, Math.PI * 2);
+  ctx.arc(ball.x, ball.y, 7, 0, Math.PI * 2);
   ctx.fillStyle = "#222";
   ctx.fill();
 
@@ -574,27 +638,14 @@ function loop(now) {
   update(dt);
   draw();
 
-  if (state.running) {
-    state.frameId = requestAnimationFrame(loop);
-  }
+  if (state.running) state.frameId = requestAnimationFrame(loop);
 }
 
-window.addEventListener("keydown", (e) => {
+window.addEventListener("keydown", e => {
   const key = e.key.toLowerCase();
 
   if (
     !state.running &&
-    !startOverlay.classList.contains("hidden") &&
-    (key === "enter" || key === " ")
-  ) {
-    e.preventDefault();
-    startGame();
-    return;
-  }
-
-  if (
-    !state.running &&
-    !endOverlay.classList.contains("hidden") &&
     (key === "enter" || key === " ")
   ) {
     e.preventDefault();
@@ -608,13 +659,11 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-window.addEventListener("keyup", (e) => {
+window.addEventListener("keyup", e => {
   state.keys[e.key.toLowerCase()] = false;
 });
 
 function setupJoystick() {
-  if (!joystick || !stick) return;
-
   let pointer = null;
   const max = 38;
 
@@ -634,24 +683,22 @@ function setupJoystick() {
 
     state.joyX = dx / max;
     state.joyY = dy / max;
-
     stick.style.transform =
       `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
   }
 
-  joystick.addEventListener("pointerdown", (e) => {
+  joystick.addEventListener("pointerdown", e => {
     pointer = e.pointerId;
     joystick.setPointerCapture(pointer);
     setFromPointer(e);
   });
 
-  joystick.addEventListener("pointermove", (e) => {
+  joystick.addEventListener("pointermove", e => {
     if (e.pointerId === pointer) setFromPointer(e);
   });
 
   function end(e) {
     if (e.pointerId !== pointer) return;
-
     pointer = null;
     state.joyX = 0;
     state.joyY = 0;
