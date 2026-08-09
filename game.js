@@ -40,6 +40,7 @@ const joystick = el("joystick");
 const stick = el("stick");
 const kickBtn = el("kickBtn");
 const switchBtn = el("switchBtn");
+const tackleBtn = el("tackleBtn");
 const difficultyEl = el("difficulty");
 
 const W = canvas.width, H = canvas.height;
@@ -51,7 +52,8 @@ const state = {
   running:false, paused:false, lastTime:0, time:120, halfLength:120, half:1, blueAttackRight:true,
   blueScore:0, redScore:0, joyX:0, joyY:0, keys:Object.create(null), activeBlue:0, frameId:null,
   possession:null,lastTouchTeam:"blue",kickChargeStart:null,kickCooldown:0,stealCooldown:0,
-  keeperClearDelay:0,restartTimer:null,contestHold:0,contestOpponent:null, endAction:"restart"
+  keeperClearDelay:0,restartTimer:null,contestHold:0,contestOpponent:null, endAction:"restart",
+  tackleCooldown:0,tackleWindow:0,passReceiver:null,passReceiverTimer:0
 };
 
 const tournament = {
@@ -352,7 +354,7 @@ function resetPositions(){
   const rp=state.blueAttackRight?rpBase:rpBase.map(([x,y])=>[mirrorX(x),y]);
   blue.forEach((p,i)=>{p.x=p.homeX=bp[i][0];p.y=p.homeY=bp[i][1];p.vx=p.vy=0;p.facingX=attackSign("blue");p.facingY=0;p.controlled=i===0;p.speed=i===0?250:(p.keeper?175:195);p.aiThink=0});
   red.forEach((p,i)=>{p.x=p.homeX=rp[i][0];p.y=p.homeY=rp[i][1];p.vx=p.vy=0;p.facingX=attackSign("red");p.facingY=0;p.speed=p.keeper?175:195;p.aiThink=0});
-  state.activeBlue=0;state.possession=null;state.kickCooldown=0;state.stealCooldown=0;state.keeperClearDelay=0;state.contestHold=0;state.contestOpponent=null;
+  state.activeBlue=0;state.possession=null;state.kickCooldown=0;state.stealCooldown=0;state.keeperClearDelay=0;state.contestHold=0;state.contestOpponent=null;state.tackleCooldown=0;state.tackleWindow=0;state.passReceiver=null;state.passReceiverTimer=0;
   ball.x=W/2;ball.y=H/2;ball.vx=ball.vy=0;
 }
 
@@ -475,7 +477,15 @@ function controlHuman(dt){
   let input=keyboardVector();
   if(!input.x&&!input.y&&(Math.abs(state.joyX)>.02||Math.abs(state.joyY)>.02))input=norm(state.joyX,state.joyY);
 
-  const desiredX=input.x*p.speed,desiredY=input.y*p.speed;
+  // S míčem je hráč o něco pomalejší a při prudké změně směru ztrácí část rychlosti.
+  // Díky tomu vedení míče působí jako driblink, ale na lehké obtížnosti zůstává dobře ovladatelné.
+  let moveSpeed=p.speed;
+  if(state.possession===p){
+    const facingDot=input.x*p.facingX+input.y*p.facingY;
+    moveSpeed*=facingDot<-.15?.76:.88;
+  }
+  if(state.tackleWindow>0)moveSpeed*=1.06;
+  const desiredX=input.x*moveSpeed,desiredY=input.y*moveSpeed;
   const accelerating=Math.abs(input.x)+Math.abs(input.y)>0;
   const accel=(accelerating?760:1080)*dt;
   p.vx=approach(p.vx,desiredX,accel);
@@ -504,22 +514,34 @@ function nearestIndex(team,target){
   return idx;
 }
 
+function setControlledBlue(index){
+  if(index<0||index>=blue.length||blue[index].keeper)return;
+  blue.forEach((p,i)=>{
+    p.controlled=i===index;
+    if(!p.keeper)p.speed=i===index?250:195;
+  });
+  state.activeBlue=index;
+}
+
 function switchPlayer(){
   if(!state.running||state.paused)return;
 
-  // Přepnutí proběhne VÝHRADNĚ po stisku Q / HRÁČ.
-  // Žádná herní situace, rozehrávka ani zisk míče hráče automaticky nepřepíná.
+  // Ruční přepnutí zůstává. Automaticky se hráč změní pouze po úspěšné vlastní přihrávce.
   const current=state.activeBlue;
   const playable=blue.map((p,i)=>({p,i})).filter(o=>!o.p.keeper);
   const pos=playable.findIndex(o=>o.i===current);
   const next=playable[(pos+1)%playable.length];
-  if(!next)return;
+  if(next)setControlledBlue(next.i);
+}
 
-  blue[current].controlled=false;
-  blue[current].speed=195;
-  state.activeBlue=next.i;
-  blue[state.activeBlue].controlled=true;
-  blue[state.activeBlue].speed=250;
+function armPassReceiver(target){
+  state.passReceiver=target&&target.team==="blue"&&!target.keeper?target:null;
+  state.passReceiverTimer=state.passReceiver?2.2:0;
+}
+
+function clearPassReceiver(){
+  state.passReceiver=null;
+  state.passReceiverTimer=0;
 }
 
 
@@ -546,6 +568,8 @@ function keeperClear(p){
     :norm(forwardSign,(H/2-p.y)*.003);
 
   clearPossession();
+  if(p.team==="blue"&&target)armPassReceiver(target);
+  else clearPassReceiver();
   const power=545;
   ball.x=p.x+dir.x*(p.r+ball.r+14);
   ball.y=p.y+dir.y*(p.r+ball.r+14);
@@ -565,12 +589,21 @@ function nearestOpponentDistance(p){
 
 function supportTarget(holder,p,attackingRight){
   const sign=attackingRight?1:-1;
-  const lane=p.number===7||p.number===8?-1:1;
+  const mates=(p.team==="blue"?blue:red).filter(t=>!t.keeper&&t!==holder);
+  const order=mates.indexOf(p);
+  const holderHigh=holder.y<H/2;
+  const lane=(order===0?-1:1);
+
+  // Jeden spoluhráč dává kratší variantu do strany, druhý nabíhá dál dopředu.
+  const advance=order===0?105:175;
+  let targetY=H/2+lane*155;
+  if((holderHigh&&lane<0)||(!holderHigh&&lane>0))targetY=H/2-lane*118;
   return {
-    x:clamp(holder.x+sign*145,FIELD.left+125,FIELD.right-125),
-    y:clamp(H/2+lane*165,FIELD.top+75,FIELD.bottom-75)
+    x:clamp(holder.x+sign*advance,FIELD.left+120,FIELD.right-120),
+    y:clamp(targetY,FIELD.top+72,FIELD.bottom-72)
   };
 }
+
 
 function updateBlueAI(dt){
   const holder=state.possession;
@@ -613,7 +646,7 @@ function updateBlueAI(dt){
       if(i===defender){
         moveAI(p,holder.x-sign*18,holder.y,dt,205);
       }else{
-        const coverX=clamp(holder.x-sign*170,FIELD.left+145,FIELD.right-145);
+        const coverX=clamp(holder.x-sign*195,FIELD.left+145,FIELD.right-145);
         const coverY=clamp(p.homeY*.58+holder.y*.42,FIELD.top+80,FIELD.bottom-80);
         moveAI(p,coverX,coverY,dt,168);
       }
@@ -679,11 +712,11 @@ function updateRedAI(dt){
 
     if(holder&&holder.team==="blue"){
       if(i===defender){
-        const pressGap=difficultyEl.value==="rookie"?82:difficultyEl.value==="easy"?58:22;
-        const pressSpeed=difficultyEl.value==="rookie"?base-10:difficultyEl.value==="easy"?base:base+18;
+        const pressGap=difficultyEl.value==="rookie"?118:difficultyEl.value==="easy"?88:difficultyEl.value==="normal"?54:34;
+        const pressSpeed=difficultyEl.value==="rookie"?base-22:difficultyEl.value==="easy"?base-12:difficultyEl.value==="normal"?base:base+12;
         moveAI(p,holder.x-sign*pressGap,holder.y,dt,pressSpeed);
       }else{
-        const coverX=clamp(holder.x-sign*170,FIELD.left+145,FIELD.right-145);
+        const coverX=clamp(holder.x-sign*195,FIELD.left+145,FIELD.right-145);
         const coverY=clamp(p.homeY*.58+holder.y*.42,FIELD.top+80,FIELD.bottom-80);
         moveAI(p,coverX,coverY,dt,Math.max(difficultyEl.value==="rookie"?125:142,base-28));
       }
@@ -713,19 +746,38 @@ function setPossession(p){
   state.lastTouchTeam=p.team;
   state.keeperClearDelay=p.keeper?.12:0;
   state.contestHold=0;state.contestOpponent=null;
+
+  // Vlastní přesná přihrávka: ovládání se přepne až ve chvíli, kdy ji určený spoluhráč opravdu převezme.
+  if(state.passReceiver){
+    if(p===state.passReceiver){
+      const idx=blue.indexOf(p);
+      if(idx>=0)setControlledBlue(idx);
+      clearPassReceiver();
+    }else if(p.team==="red"||p.team==="blue"){
+      clearPassReceiver();
+    }
+  }
+
   const firstThink=(p.team==="red"&&difficultyEl.value==="rookie")?.78:(p.team==="red"&&difficultyEl.value==="easy")?.58:.42;
   p.aiThink=Math.max(p.aiThink,firstThink);
   ball.vx=ball.vy=0;
 }
+
 function clearPossession(){state.possession=null;state.keeperClearDelay=0;state.contestHold=0;state.contestOpponent=null}
 
 function updatePossessionBall(){
   const p=state.possession;if(!p)return;
-  const gap=p.r+ball.r+5;
-  ball.x=p.x+p.facingX*gap;ball.y=p.y+p.facingY*gap;
+  const speed=Math.hypot(p.vx,p.vy);
+  const lead=clamp(speed/250,0,1)*10;
+  const bob=speed>55?Math.sin(performance.now()/95)*2.2:0;
+  const gap=p.r+ball.r+4+lead;
+  const sideX=-p.facingY,sideY=p.facingX;
+  ball.x=p.x+p.facingX*gap+sideX*bob;
+  ball.y=p.y+p.facingY*gap+sideY*bob;
   ball.vx=p.vx;ball.vy=p.vy;
   checkOut();
 }
+
 
 function tryAcquire(){
   if(state.possession||state.kickCooldown>0)return;
@@ -742,22 +794,63 @@ function tryAcquire(){
 
 function trySteal(dt){
   if(!state.possession||state.stealCooldown>0){state.contestHold=0;state.contestOpponent=null;return}
-  const h=state.possession,opps=h.team==="blue"?red:blue;
+  const h=state.possession;
+
+  // Když má míč soupeř, TY ho získáš jen tlačítkem ODEBRAT / klávesou E.
+  if(h.team==="red"){
+    const tackler=blue[state.activeBlue];
+    if(!tackler||tackler.keeper||state.tackleWindow<=0){state.contestHold=0;return}
+    const d=dist(tackler,h);
+    const reach=tackler.r+h.r+22;
+    if(d<=reach){
+      setPossession(tackler);
+      state.stealCooldown=.48;
+      state.tackleWindow=0;
+      state.tackleCooldown=.52;
+    }
+    return;
+  }
+
+  // Soupeřova AI odebírá míč kontaktem, ale na lehkých obtížnostech potřebuje výrazně delší souboj.
   let n=null,b=Infinity;
-  opps.forEach(p=>{if(p.keeper)return;const d=dist(p,h);if(d<b){b=d;n=p}});
+  red.forEach(p=>{if(p.keeper)return;const d=dist(p,h);if(d<b){b=d;n=p}});
   const contact=n&&b<h.r+n.r+7;
   if(!contact){state.contestHold=Math.max(0,state.contestHold-dt*2.2);state.contestOpponent=null;return}
   if(state.contestOpponent!==n){state.contestOpponent=n;state.contestHold=0}
   state.contestHold+=dt;
-  let needed=Math.hypot(h.vx,h.vy)>160?.24:.18;
-  // Když soupeř bere míč hráči, na lehčích obtížnostech musí být v souboji déle.
-  if(h.team==="blue"&&n.team==="red"){
-    if(difficultyEl.value==="rookie")needed=.62;
-    else if(difficultyEl.value==="easy")needed=.44;
-    else if(difficultyEl.value==="normal")needed=.30;
-  }
-  if(state.contestHold>=needed){setPossession(n);state.stealCooldown=difficultyEl.value==="rookie"?.85:.62}
+  let needed=Math.hypot(h.vx,h.vy)>160?.30:.24;
+  if(difficultyEl.value==="rookie")needed=.78;
+  else if(difficultyEl.value==="easy")needed=.56;
+  else if(difficultyEl.value==="normal")needed=.38;
+  if(state.contestHold>=needed){setPossession(n);state.stealCooldown=difficultyEl.value==="rookie"?.95:.68}
 }
+
+function attemptTackle(){
+  if(!state.running||state.paused||state.tackleCooldown>0)return;
+  const p=blue[state.activeBlue];
+  if(!p||p.keeper||state.possession===p)return;
+
+  state.tackleCooldown=.72;
+  state.tackleWindow=.24;
+
+  if(state.possession&&state.possession.team==="red"){
+    const h=state.possession;
+    const d=dist(p,h);
+    if(d<110){
+      const dir=norm(h.x-p.x,h.y-p.y);
+      p.facingX=dir.x;p.facingY=dir.y;
+      p.vx=dir.x*285;p.vy=dir.y*285;
+      // Je-li hráč už v dobrém dosahu, vypíchne míč okamžitě.
+      if(d<=p.r+h.r+18){
+        setPossession(p);
+        state.stealCooldown=.48;
+        state.tackleWindow=0;
+        state.tackleCooldown=.52;
+      }
+    }
+  }
+}
+
 
 function pointSegmentDistance(px,py,ax,ay,bx,by){
   const abx=bx-ax,aby=by-ay,apx=px-ax,apy=py-ay;
@@ -810,6 +903,8 @@ function kickFromPlayer(p,held){
     if(attackSign(p.team)<0&&dir.x>-.12)dir=norm(-1,dir.y*.42);
   }
   clearPossession();
+  if(!strong&&p.team==="blue"&&target)armPassReceiver(target);
+  else clearPassReceiver();
   const power=strong?Math.min(690,555+held*105):365;
   ball.x=p.x+dir.x*(p.r+ball.r+8);ball.y=p.y+dir.y*(p.r+ball.r+8);
   ball.vx=dir.x*power;ball.vy=dir.y*power;state.lastTouchTeam=p.team;state.kickCooldown=.28;state.stealCooldown=.24;
@@ -833,6 +928,7 @@ function aiKick(p,strong){
   if(attackSign(p.team)<0&&dir.x>-.12)dir=norm(-1,dir.y*.36);
 
   clearPossession();
+  clearPassReceiver();
   ball.x=p.x+dir.x*(p.r+ball.r+8);
   ball.y=p.y+dir.y*(p.r+ball.r+8);
   const pow=strong?(mode==="rookie"?520:mode==="easy"?565:mode==="hard"?635:600):(mode==="rookie"?300:mode==="easy"?325:mode==="hard"?365:345);
@@ -896,9 +992,14 @@ function update(dt){
   }
   state.kickCooldown=Math.max(0,state.kickCooldown-dt);
   state.stealCooldown=Math.max(0,state.stealCooldown-dt);
+  state.tackleCooldown=Math.max(0,state.tackleCooldown-dt);
+  state.tackleWindow=Math.max(0,state.tackleWindow-dt);
+  state.passReceiverTimer=Math.max(0,state.passReceiverTimer-dt);
+  if(state.passReceiver&&state.passReceiverTimer<=0)clearPassReceiver();
   state.keeperClearDelay=Math.max(0,state.keeperClearDelay-dt);
   [...blue,...red].forEach(p=>p.aiThink=Math.max(0,p.aiThink-dt));
   controlHuman(dt);updateBlueAI(dt);updateRedAI(dt);
+  if(tackleBtn)tackleBtn.classList.toggle("cooldown",state.tackleCooldown>0);
 
   const all=[...blue,...red];
   for(let pass=0;pass<2;pass++)for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++)resolvePlayerCollision(all[i],all[j]);
@@ -1209,6 +1310,7 @@ window.addEventListener("keydown",e=>{
   if(!state.running&&(k==="enter"||k===" ")&&!startOverlay.classList.contains("hidden")){e.preventDefault();beginSelectedMode();return}
   if(["arrowup","arrowdown","arrowleft","arrowright","w","a","s","d"].includes(k)){e.preventDefault();state.keys[k]=true}
   if(k==="q"&&state.running&&!e.repeat){e.preventDefault();switchPlayer()}
+  if(k==="e"&&state.running&&!e.repeat){e.preventDefault();attemptTackle()}
   if(k===" "&&state.running&&!e.repeat){e.preventDefault();beginKick()}
 });
 window.addEventListener("keyup",e=>{const k=e.key.toLowerCase();state.keys[k]=false;if(k===" "){e.preventDefault();endKick()}});
@@ -1241,6 +1343,7 @@ restartBtn.addEventListener("click",()=>{
 menuBtn.addEventListener("click",showMainMenu);
 gameModeEl.addEventListener("change",updateModeControls);
 switchBtn.addEventListener("pointerdown",e=>{e.preventDefault();switchPlayer()});
+tackleBtn.addEventListener("pointerdown",e=>{e.preventDefault();attemptTackle()});
 kickBtn.addEventListener("pointerdown",e=>{e.preventDefault();beginKick()});
 kickBtn.addEventListener("pointerup",e=>{e.preventDefault();endKick()});
 kickBtn.addEventListener("pointercancel",()=>{state.kickChargeStart=null;kickBtn.classList.remove("charging")});

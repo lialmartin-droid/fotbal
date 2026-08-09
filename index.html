@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-  <title>Fotbal 3v3 – Turnaj 64 se skupinami</title>
+  <title>Fotbal 3v3 – V4.7 Hratelnost</title>
   <link rel="stylesheet" href="style.css">
   <script src="game.js" defer></script>
 </head>
@@ -34,20 +34,21 @@
 
         <div class="mobile-controls">
           <div id="joystick" class="joystick"><div id="stick" class="stick"></div></div>
+          <button id="tackleBtn" class="tackle-btn" type="button">ODEBRAT</button>
           <button id="switchBtn" class="switch-btn" type="button">HRÁČ</button>
           <button id="kickBtn" class="kick-btn" type="button"><span>⚽</span>KOP</button>
         </div>
 
         <div class="tip-banner">
           <strong>HRAJ JAKO VE FOTBALE</strong>
-          <span>Krátký stisk = přihrávka · Podržení 0,4 s a déle = střela</span>
+          <span>Krátký KOP = přihrávka · Podržení = střela · ODEBRAT = vypíchnutí míče</span>
           <em>Po poločase si týmy vymění strany.</em>
         </div>
 
         <div id="startOverlay" class="overlay">
           <div class="card start-card">
             <h1>Fotbal 3v3</h1>
-            <p>WASD / šipky = pohyb · Q = změna hráče · mezerník = přihrávka / střela</p>
+            <p>WASD / šipky = pohyb · Q = změna hráče · E = odebrat · mezerník = přihrávka / střela</p>
 
             <div class="start-settings">
               <label>Herní režim
@@ -126,8 +127,8 @@
 
       <section class="panel-card">
         <h3>OVLÁDÁNÍ</h3>
-        <p><b>PC:</b><br>Pohyb: WASD / šipky<br>Kop: <strong>MEZERNÍK</strong><br>Změna hráče: <strong>Q</strong> (jen ručně)</p>
-        <p><b>Mobil:</b><br>Vlevo joystick<br>Vpravo <strong>KOP</strong><br>Tlačítko <strong>HRÁČ</strong></p>
+        <p><b>PC:</b><br>Pohyb: WASD / šipky<br>Kop: <strong>MEZERNÍK</strong><br>Odebrat míč: <strong>E</strong><br>Změna hráče: <strong>Q</strong></p>
+        <p><b>Mobil:</b><br>Vlevo joystick<br>Vpravo <strong>KOP</strong><br><strong>ODEBRAT</strong> = vypíchnutí<br><strong>HRÁČ</strong> = ruční změna</p>
       </section>
 
       <section class="panel-card">
