@@ -30,11 +30,11 @@
           <h1>Fotbal 3v3</h1>
           <p>
             PC: WASD nebo šipky.<br>
-            Mobil: joystick vlevo.<br>
-            Míč vedeš pohybem. Souboje se už nezamykají v rozích.
+            Mezerník = přihrávka / střela.<br>
+            Mobil: joystick + tlačítko KOP.
           </p>
           <button id="startBtn" type="button">ZAČÍT ZÁPAS</button>
-          <small class="start-hint">Enter nebo mezerník také spustí zápas.</small>
+          <small class="start-hint">Krátké stisknutí = přihrávka, delší podržení = silnější střela.</small>
         </div>
       </div>
 
@@ -55,8 +55,10 @@
       <div class="control-help">
         <strong>OVLÁDÁNÍ</strong>
         <span>WASD / šipky</span>
-        <small>Aktivní hráč má žlutý kruh.</small>
+        <small>Žlutý kruh = aktivní hráč.</small>
       </div>
+
+      <button id="kickBtn" class="kick-btn" type="button">KOP</button>
     </section>
   </main>
 </body>
